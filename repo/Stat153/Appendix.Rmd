@@ -1,0 +1,281 @@
+---
+title: "Appendix"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(warn=-1)
+```
+
+Import libraries 
+```{r eval=FALSE}
+library(forecast)
+library(astsa)
+library(ggplot2)
+```
+
+Import data. Have the csv in the same working directory as the code. 
+```{r eval=FALSE}
+stocks <- read.csv('stocks.csv') # Read in the data
+stocks$Date <- as.Date(stocks$Date) # Change Dates to be date types
+```
+
+# Exploratory Data Analysis
+
+Plotting data [Figure 1]
+```{r eval=FALSE}
+title1 <- 'Mediocre Social Network Apps Inc. Stock Price over Time'
+figure1 <- ggplot(stocks) + geom_line(aes(x=Date, y=Price)) 
+figure1 <- figure1 + labs(x = 'Time', y = 'Price ($)')  
+figure1 <- figure1 + ggtitle(title1) 
+figure1 <- figure1 + theme_bw() 
+figure1
+```
+
+Fitting quadratic curve and find its residuals 
+```{r eval=FALSE}
+prices <- stocks$Price
+time <- stocks$X
+time_2 <- time ** 2
+mod <- lm(prices~time + time_2)
+stocks$resid <- mod$residuals
+stocks$fitted <- mod$fitted.values
+```
+
+Plot the quadratic curve [Figure 2 (a)]
+```{r eval=FALSE}
+title2_a <- 'Quadratic Fit on Stock Price'
+figure2_a <- ggplot(stocks) + geom_line(aes(x=Date, y=Price)) 
+figure2_a <- figure2_a + geom_line(aes(x=Date, y=fitted), color = 'red') 
+figure2_a <- figure2_a + labs(x = 'Time', y = 'Price ($)') 
+figure2_a <- figure2_a + ggtitle(title2_a) 
+figure2_a <- figure2_a + theme_bw()
+figure2_a
+```
+
+Plot the residuals of the quadratic curve [Figure 2 (b)]
+```{r eval=FALSE}
+title2_b <- 'Residuals of Quadratic Model'
+figure2_b <- ggplot(stocks) + geom_line(aes(x=Date, y=resid)) 
+figure2_b <- figure2_b + labs(x = 'Time', y = 'Residual') 
+figure2_b <- figure2_b + ggtitle(title2_b) 
+figure2_b <- figure2_b + theme_bw()
+figure2_b
+```
+
+# 2 Modeling a Deterministic Function of Time
+
+Take the log of the data, fit the quadratic, and find the residuals
+```{r eval=FALSE}
+stocks$transform <- log(stocks$Price)
+mod <- lm(stocks$transform~time + time_2)
+stocks$transform_resid <-  mod$residuals
+stocks$transform_fitted <- mod$fitted.values
+```
+
+Plot the quadratic fit on $X_t$ [Figure 3 (a)]
+```{r eval=FALSE}
+title3_a <- 'Quadratic fit on'~X[t]
+figure3_a <- ggplot(stocks) + geom_line(aes(x=Date, y=transform)) 
+figure3_a <- figure3_a + geom_line(aes(x=Date, y=transform_fitted), color = 'red') 
+figure3_a <- figure3_a + labs(x = 'Time', y = 'Price (S)') + ggtitle(title3_a) + theme_bw()
+figure3_a
+```
+
+Plot the residuals for the quadratic fit on $X_t$ [Figure 3 (b)]
+```{r eval=FALSE}
+title3_b <- 'Residuals of Quadratic Model on'~X[t]
+figure3_b <- ggplot(stocks) + geom_line(aes(x=Date, y=transform_resid)) 
+figure3_b <- figure3_b + labs(x = 'Time', y = 'Residual') + ggtitle(title3_b) + theme_bw()
+figure3_b
+```
+
+Find and plot the first difference of $X_t$
+```{r eval=FALSE}
+stocks$diff_poly <- c(0, diff(stocks$transform_resid))
+```
+
+Plot the first difference of $X_t$ [Figure 4]
+```{r eval=FALSE}
+title4 <- '$\\nabla(\\epsilon_{t})$'
+figure4 <- ggplot(stocks) + geom_line(aes(x=Date, y=diff_poly)) 
+figure4 <- figure4 + labs(x = 'Time', y = 'Difference') + ggtitle(title4) + theme_bw()
+figure4
+```
+
+Find $\nabla^2 X_t$ 
+```{r eval=FALSE}
+stocks$diff_2_log <- c(0, 0, diff(stocks$transform, differences = 2))
+```
+
+Plot $\nabla^2 X_t$ [Figure 5]
+```{r eval=FALSE}
+title5 <- '$\\nabla^{2}(X_{t})$'
+figure5 <- ggplot(stocks) + geom_line(aes(x=Date, y=diff_2_log)) 
+figure5 <- figure5 + labs(x = 'Time', y = 'Difference') + ggtitle(title5) 
+figure5 <- figure5 + theme_bw()
+figure5
+```
+
+Find $\nabla X_t$
+```{r eval=FALSE}
+stocks$diff_log <- c(0,diff(stocks$transform))
+```
+
+Plot of the first difference of the log data [Figure 6]
+```{r eval=FALSE}
+title6 <- '$\\nabla(X_{t})$'
+figure6 <- ggplot(stocks) + geom_line(aes(x=Date, y=diff_log)) 
+figure6 <- figure6 + labs(x = 'Time', y = 'Difference') + ggtitle(title6) 
+figure6 <- figure6 + theme_bw()
+figure6
+```
+
+# ARIMA Model Selection
+
+Plot the ACF of $\nabla(\epsilon)$ [Figure 7 (a)]
+```{r eval=FALSE}
+title7_a <- 'ACF of $\\nabla$($\\epsilon_{t}$)'
+acf(stocks$diff_poly, main = title7_a)
+```
+
+Plot the PACF of $\nabla(\epsilon)$ [Figure 7 (b)]
+```{r eval=FALSE}
+title7_b <- 'PACF of $\\nabla$($\\epsilon_{t}$)'
+pacf(stocks$diff_poly, main = title7_b)
+```
+
+Plot the ACF of $\nabla(\epsilon)$ [Figure 8 (a)]
+```{r eval=FALSE}
+title8_a <- 'ACF of $\\nabla^{2}(X_{t})$'
+acf(stocks$diff_2_log, main=title8_a)
+```
+
+Plot the PACF of $\nabla(\epsilon)$ [Figure 8 (b)]
+```{r eval=FALSE}
+title8_b <- 'PACF of $\\nabla^{2}(X_{t})$'
+pacf(stocks$diff_2_log, main=title8_b)
+```
+
+The diagonistics of ARIMA(0,2,1) for the log data [Figure 9]
+```{r eval=FALSE}
+sarima(stocks$transform, 0, 2, 1)
+```
+
+The ACF and PACF of $\nabla X_t$ [Figure 10]
+```{r eval=FALSE}
+title10_a <- "ACF of $\\nabla(X_{t})"
+acf(stocks$diff_log, main=title10_a)
+```
+
+The ACF and PACF of $\nabla X_t$ [Figure 10]
+```{r eval=FALSE}
+title10_b <- "PACF of $\\nabla(X_{t})"
+pacf(stocks$diff_log, main=title10_b)
+```
+
+## Cross Validation Model Comparison
+
+A function like sarmia.for but doesn't generate plots. Credit: https://stackoverflow.com/questions/55871256/can-i-prevent-sarima-for-from-plotting
+
+```{r eval=FALSE}
+sarima.noplot = function(x, ...) {
+  png(tf<-tempfile())
+  out <- sarima.for(x, ...)
+  dev.off()
+  file.remove(tf)
+  return(out)
+}
+```
+
+Calculates the MSE with cross-validation
+```{r eval=FALSE}
+mse <- function(p, d, q, P, D, Q, S) {
+  start_year <- 254 
+  end_year <- length(stocks$Price)
+  sum_squared_errors = 0
+  for (year in seq(start_year, end_year, 10)) {
+    train_set <- window(stocks$Price, end=year-1)
+    test_set <- window(stocks$Price, start=year, end=year + 9)
+    forecast <- exp(sarima.noplot(log(train_set), 
+                                 n.ahead=10, p = p, d = d, q = q, P = P, D = D, Q = Q, S = S)$pred)
+    sum_squared_errors <- sum_squared_errors + sum((forecast - test_set)^2)
+  }
+  mse <- sum_squared_errors / (10*length(seq(start_year, end_year, 10)))
+  return(mse)
+}
+```
+
+Log Stabilization Transformed + ARIMA(0, 2, 1)
+```{r eval=FALSE}
+sqrt(mse(0,2,1,0,0,0,0))
+```
+
+Log Stabilization Transformed + ARIMA(0, 1, 0)
+```{r eval=FALSE}
+sqrt(mse(0,1,0,0,0,0,0))
+```
+
+Log Stabilization Transformed + Quadratic Trend + ARIMA(0, 1, 0)
+```{r eval=FALSE}
+start_year <- 254
+end_year <- length(stocks$Price)
+sum_squared_errors <- 0
+for (year in seq(start_year, end_year, 10)) {
+    train_set <- window(stocks$Price, end=year-1)
+    test_set <- window(stocks$Price, start=year, end=year + 9)
+    
+    model4 <- lm(log(train_set) ~ poly(1:length(train_set), degree=2, raw=TRUE))
+    test_matrix <- model.matrix( ~ poly((length(train_set) + 1):(length(train_set) + 10), 
+                                        degree=2, raw=TRUE))
+    trendforecast4 <- test_matrix %*% model4$coefficients
+    temp <- sarima.noplot(model4$residuals, 
+                          n.ahead = 10, p = 1, d = 0, q = 0, P = 0, D = 0, Q = 0, S = 0)$pred
+    forecast4 <- exp(trendforecast4 + temp)
+    sum_squared_errors <- sum_squared_errors + sum((forecast4 - test_set)^2)
+}
+
+sqrt(sum_squared_errors / (10*length(seq(start_year, end_year, 10))))
+```
+
+Information for ARIMA(0,1,0)
+```{r eval=FALSE}
+sarima(stocks$transform, 0, 1, 0)
+```
+
+Create predictions
+```{r eval=FALSE}
+last <- tail(stocks, 100)
+forecast <- sarima.for(stocks$transform, n.ahead = 10, 0, 1, 0)
+predictions <- exp(forecast$pred[1:10])
+lower_bound_1 <- exp(forecast$pred[1:10] - forecast$se[1:10])
+upper_bound_1 <- exp(forecast$pred[1:10] + forecast$se[1:10])
+lower_bound_2 <- exp(forecast$pred[1:10] - 1.96*forecast$se[1:10])
+upper_bound_2 <- exp(forecast$pred[1:10] + 1.96*forecast$se[1:10])
+last <- last[c('Date', 'Price')]
+last$Key <- 'Observations'
+new_dates <- c("2019-10-01", "2019-10-02", "2019-10-03", "2019-10-04", 
+               "2019-10-07", "2019-10-08", "2019-10-09", "2019-10-10", 
+               "2019-10-11", "2019-10-14")
+preds <- data.frame(Date = new_dates, Price = predictions, Key = 'Predictions')
+upper_2 <- data.frame(Date = new_dates, Price = upper_bound_2,  Key = 'Upper_2')
+lower_2 <- data.frame(Date = new_dates, Price = lower_bound_2,  Key = 'Lower_2')
+upper_1 <- data.frame(Date = new_dates, Price = upper_bound_1,  Key = 'Upper_1')
+lower_1 <- data.frame(Date = new_dates, Price = lower_bound_1,  Key = 'Lower_1')
+df <- rbind(last, preds, upper_2, lower_2, upper_1, lower_1)
+```
+
+Plot prediction [Figure 11]
+```{r eval=FALSE}
+figure11 <- ggplot(df) + geom_line(aes(x=Date, y=Price, color = Key)) 
+figure11 <- figure11 + labs(x = 'Time', y = 'Difference') + ggtitle('Predictions') 
+figure11 <- figure11 + theme_bw() + theme(legend.position = 'none') 
+figure11 <- figure11 + scale_colour_manual(values=c(
+Observations='black', Predictions='red', Upper_1='deepskyblue', Lower_1='deepskyblue', 
+Upper_2='deepskyblue3', Lower_2='deepskyblue3'))
+figure11
+```
+
+
+
